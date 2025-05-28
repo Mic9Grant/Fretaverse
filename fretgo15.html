@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Michael 9 Grant Fretaverse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Audiowide&display=swap" rel="stylesheet">
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #121212;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; /* Align to top */
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px 10px;
+    box-sizing: border-box;
+  }
+
+  .title {
+    font-family: 'Audiowide', cursive;
+    font-size: 2.2em;
+    color: #00DFFF;
+    text-align: center;
+    margin-top: 10px;
+    margin-bottom: 25px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 0 0 4px #00DFFF, 0 0 8px #00DFFF, 0 0 12px #0077FF, 1px 1px 1px rgba(0,0,0,0.4);
+  }
+
+  .controls-container {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #222;
+    border-radius: 5px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    max-width: 1100px; /* Max width for controls section */
+    box-sizing: border-box;
+  }
+
+  .control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .controls-container label {
+    font-size: 1em;
+    color: #ccc;
+  }
+
+  .controls-container select {
+    padding: 8px;
+    font-size: 1em;
+    border-radius: 4px;
+    border: 1px solid #555;
+    background-color: #333;
+    color: #fff;
+    min-width: 140px;
+  }
+
+  .fretboard-outer-container {
+      width: 100%;
+      overflow-x: auto; /* Enables horizontal scrolling for the fretboard */
+      padding-bottom: 10px; /* Space for scrollbar if it appears */
+  }
+
+  .fretboard-container {
+    display: grid;
+    /* Columns: L-StrNum | OpenStr | 18 Frets | R-StrNum */
+    grid-template-columns: 30px 45px repeat(18, 65px) 30px;
+    /* Rows: TopFret# | 6 Strings | BottomFret# */
+    grid-template-rows: 35px repeat(6, 55px) 35px;
+    gap: 1px; /* Simulates fret lines between cells */
+    background-color: #333; /* Color of the grid gaps */
+    border: 2px solid #444; /* Outer border of the fretboard */
+    position: relative;
+    margin: 0 auto; /* Center fretboard if outer container is wider */
+    min-width: calc(30px + 45px + (18 * 65px) + 30px + 2px);
+  }
+
+  /* Common styling for all cells in the fretboard grid */
+  .label, .note, .string-number, .header-empty-cell, .footer-empty-cell, .fret-number {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    box-sizing: border-box;
+    position: relative;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.2s ease;
+    font-size: 0.9em; /* Base font size for cells, scaled in media queries */
+  }
+
+  .string-number {
+    color: red;
+    font-size: 1.2em; /* Relative to parent cell's font-size */
+    background-color: #1a1a1a; /* Dark background for string number columns */
+    border: 1px solid #282828;
+    z-index: 0;
+  }
+
+  /* Styling for empty cells in header and footer rows (above/below string/fret columns) */
+  .header-empty-cell, .footer-empty-cell {
+      background-color: #222;
+      border-left: 1px solid #333;
+      border-right: 1px solid #333;
+  }
+  .header-empty-cell { border-bottom: 1px solid #444; }
+  .footer-empty-cell { border-top: 1px solid #444; }
+
+  /* First empty cell in header/footer (above/below left string numbers) */
+  .fretboard-container > .header-empty-cell:first-child,
+  .fretboard-container > .footer-empty-cell:first-child {
+      border-left: none; /* No left border on the very first cell */
+  }
+  /* Last empty cell in header (above right string numbers) - 21st child in the first row */
+  .fretboard-container > div:nth-child(21).header-empty-cell {
+      background-color: #1a1a1a; /* Match string number column background */
+      border-right: none; /* No right border on the very last cell of the row */
+      border-left: 1px solid #282828; /* Match string number column border */
+  }
+  /* Last empty cell in footer (below right string numbers) - very last child of the grid */
+  .fretboard-container > div:last-child.footer-empty-cell {
+      background-color: #1a1a1a; /* Match string number column background */
+      border-right: none; /* No right border on the very last cell */
+      border-left: 1px solid #282828; /* Match string number column border */
+  }
+
+
+  /* Styling for note cells and open string labels */
+  .note, .label.string-label {
+    background-color: #000000; /* Black background for notes */
+    border: 2px solid #282828; /* Default subtle border */
+    z-index: 0;
+  }
+
+  .label.string-label { /* Open string names */
+    font-size: 1em;
+    background-color: #222; /* Different background for open string labels */
+    border-color: #383838;
+    border-right: 1px solid #444; /* Separator from first fret */
+  }
+   .label.string-label.highlighted-scale-note-active,
+   .label.string-label.highlighted-root-distinct {
+      border-right-width: 2px; /* Ensure full border when highlighted */
+      border-right-style: solid;
+   }
+
+  .note { font-size: 1.25em; cursor: pointer; } /* Fretted notes */
+
+  /* Fret numbers (top and bottom rows) */
+  .fret-number {
+    background-color: #222;
+    color: #ccc;
+    font-size: 1em;
+    border-left: 1px solid #333;
+    border-right: 1px solid #333;
+  }
+  .fretboard-container > .fret-number { /* Top row fret numbers */
+      border-bottom: 1px solid #444;
+  }
+  .fretboard-container > .bottom-fret-number { /* Bottom row fret numbers */
+      border-top: 1px solid #444;
+      border-bottom: none; /* Remove bottom border for bottom row */
+  }
+
+  /* Highlighting styles */
+  .highlighted-scale-note-active { border-color: #00FFFF; box-shadow: 0 0 8px #00FFFF; transform: scale(1.05); z-index: 1; opacity: 1; }
+  .highlighted-root-distinct { border-color: #FFD700; box-shadow: 0 0 12px #FFD700, 0 0 5px rgba(0,0,0,0.5); transform: scale(1.1); z-index: 2; opacity: 1; }
+  .note-inactive { opacity: 0.35; pointer-events: none; box-shadow: none; transform: scale(1); border-color: #282828; }
+  .label.string-label.note-inactive { border-color: #383838; border-right-color: #444; }
+
+  /* Hover effects */
+  .note:hover:not(.highlighted-scale-note-active):not(.highlighted-root-distinct):not(.note-inactive) { transform: scale(1.03); background-color: #2a2a2a; }
+  .highlighted-scale-note-active:hover { transform: scale(1.07); box-shadow: 0 0 12px #00FFFF; }
+  .highlighted-root-distinct:hover { transform: scale(1.12); box-shadow: 0 0 18px #FFD700, 0 0 8px rgba(0,0,0,0.5); }
+
+  /* Vertical Fret Lines using pseudo-element */
+  .fretboard-container::before {
+    content: '';
+    position: absolute;
+    top: 35px; /* Start below top fret number row */
+    bottom: 35px; /* Stop above bottom fret number row */
+    left: calc(30px + 45px); /* Start after left string number and open string columns */
+    width: calc(18 * 65px); /* Cover only the 18 fret columns */
+    display: grid;
+    grid-template-columns: repeat(18, 65px);
+    pointer-events: none; /* Allow clicks to pass through to notes */
+  }
+  .fretboard-container::before > div {
+    border-right: 1px solid #555; /* Fret line color */
+  }
+  .fretboard-container::before > div:last-child {
+    border-right: none; /* No line after the last fret's content area */
+  }
+
+  /* Spelling display area below fretboard */
+  .spelling-display {
+    margin-top: 25px;
+    padding: 15px 20px;
+    background-color: #222;
+    border-radius: 5px;
+    color: #ddd;
+    text-align: center;
+    min-height: 2.5em;
+    line-height: 1.6;
+    width: 100%;
+    max-width: 1100px; /* Match controls container max-width */
+    box-sizing: border-box;
+    font-size: 1.1em;
+  }
+  .spelling-display strong {
+    color: #FFA500; /* Orange for emphasis on root and name */
+  }
+
+  /* Note Text Colors */
+  .note-E { color: #FF6347; } .note-F { color: #8A2BE2; } .note-Fsharp { color: #32CD32; }
+  .note-G { color: #FFD700; } .note-Gsharp { color: #4682B4; } .note-A { color: #FF00FF; }
+  .note-Asharp { color: #00CED1; } .note-B { color: #FFA500; } .note-C { color: #DC143C; }
+  .note-Csharp { color: #20B2AA; } .note-D { color: #FF4500; } .note-Dsharp { color: #DA70D6; }
+
+  /* Media Queries for Responsiveness */
+  @media (max-width: 1350px) {
+    .fretboard-container {
+        grid-template-columns: 25px 35px repeat(18, 50px) 25px;
+        grid-template-rows: 30px repeat(6, 45px) 30px;
+        min-width: calc(25px + 35px + (18 * 50px) + 25px + 2px);
+    }
+    .fretboard-container::before {
+        left: calc(25px + 35px);
+        width: calc(18 * 50px);
+        grid-template-columns: repeat(18, 50px);
+        top: 30px;
+        bottom: 30px;
+    }
+     .label, .note, .string-number, .fret-number, .header-empty-cell, .footer-empty-cell { font-size: 0.8em; }
+    .title { font-size: 1.8em; }
+    .controls-container select, .controls-container label { font-size: 0.9em; }
+    .spelling-display { font-size: 1em; padding: 12px 15px; }
+  }
+   @media (max-width: 1100px) {
+        .fretboard-container {
+            grid-template-columns: 20px 30px repeat(18, 40px) 20px;
+            grid-template-rows: 25px repeat(6, 35px) 25px;
+            min-width: calc(20px + 30px + (18 * 40px) + 20px + 2px);
+        }
+        .fretboard-container::before {
+            left: calc(20px + 30px);
+            width: calc(18 * 40px);
+            grid-template-columns: repeat(18, 40px);
+            top: 25px;
+            bottom: 25px;
+        }
+        .label, .note, .string-number, .fret-number, .header-empty-cell, .footer-empty-cell { font-size: 0.7em; }
+        .title { font-size: 1.6em; }
+        .spelling-display { font-size: 0.9em; padding: 10px 12px; }
+   }
+   @media (max-width: 700px) { /* For very small screens, stack controls */
+       .title { font-size: 1.3em; letter-spacing: 1px;}
+       .controls-container {gap: 10px; padding: 10px;}
+       .control-group { flex-direction: column; gap: 5px; align-items: stretch;}
+       .controls-container select {width: 100%; min-width: 120px;}
+       .spelling-display { font-size: 0.85em; }
+   }
+</style>
+</head>
+<body>
+
+<div class="title">Michael 9 Grant Fretaverse</div>
+
+<div class="controls-container">
+  <div class="control-group">
+    <label for="rootNoteSelector">Select Root Note:</label>
+    <select id="rootNoteSelector">
+      <option value="">None</option>
+      <option value="C">C</option><option value="C#">C#</option><option value="D">D</option><option value="D#">D#</option><option value="E">E</option><option value="F">F</option><option value="F#">F#</option><option value="G">G</option><option value="G#">G#</option><option value="A">A</option><option value="A#">A#</option><option value="B">B</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label for="scaleSelector">Select Scale:</label>
+    <select id="scaleSelector">
+      <option value="">None</option>
+      <optgroup label="Major Scales and Modes"><option value="major_ionian">Major (Ionian)</option><option value="dorian">Dorian</option><option value="phrygian">Phrygian</option><option value="lydian">Lydian</option><option value="mixolydian">Mixolydian</option><option value="minor_aeolian">Minor (Aeolian)</option><option value="locrian">Locrian</option></optgroup><optgroup label="Minor Scales"><option value="natural_minor">Natural Minor</option><option value="harmonic_minor">Harmonic Minor</option><option value="melodic_minor">Melodic Minor (Ascending)</option><option value="dorian_minor">Dorian Minor</option></optgroup><optgroup label="Pentatonic Scales"><option value="major_pentatonic">Major Pentatonic</option><option value="minor_pentatonic">Minor Pentatonic</option><option value="egyptian_pentatonic">Egyptian Pentatonic</option><option value="japanese_hirajoshi">Japanese Pentatonic (Hirajoshi)</option><option value="chinese_pentatonic">Chinese Pentatonic</option></optgroup><optgroup label="Blues Scales"><option value="blues_scale">Blues Scale</option><option value="major_blues_scale">Major Blues Scale</option><option value="bebop_blues_scale">Bebop Blues Scale</option></optgroup><optgroup label="Exotic and World Scales"><option value="hungarian_minor">Hungarian Minor</option><option value="spanish_phrygian">Spanish Phrygian (Phrygian Dominant)</option><option value="arabic_scale">Arabic Scale</option><option value="byzantine_scale">Byzantine Scale</option><option value="persian_scale">Persian Scale</option><option value="gypsy_scale">Gypsy Scale (Hungarian Major)</option><option value="neapolitan_minor">Neapolitan Minor</option><option value="neapolitan_major">Neapolitan Major</option><option value="jewish_ahava_rabbah">Jewish Scale (Ahava Rabbah)</option><option value="turkish_scale">Turkish Scale (Hijaz)</option></optgroup><optgroup label="Bebop and Jazz Scales"><option value="bebop_dominant">Bebop Dominant</option><option value="bebop_major">Bebop Major</option><option value="bebop_minor">Bebop Minor (Dorian b6)</option><option value="altered_scale">Altered Scale (Super Locrian)</option><option value="lydian_dominant">Lydian Dominant</option><option value="half_whole_diminished">Half-Whole Diminished</option><option value="whole_half_diminished">Whole-Half Diminished</option></optgroup><optgroup label="Synthetic and Modern Scales"><option value="whole_tone">Whole Tone Scale</option><option value="chromatic">Chromatic Scale</option><option value="octatonic_wh">Octatonic (Whole-Half)</option><option value="prometheus_scale">Prometheus Scale</option><option value="tritone_scale">Tritone Scale</option><option value="enigmatic_scale">Enigmatic Scale</option><option value="double_harmonic">Double Harmonic Major</option><option value="ukrainian_dorian">Ukrainian Dorian (Misheberakh)</option><option value="acoustic_scale">Acoustic Scale</option></optgroup><optgroup label="Additional Modes and Variations"><option value="phrygian_dominant">Phrygian Dominant</option><option value="lydian_augmented">Lydian Augmented</option><option value="locrian_natural_2">Locrian Natural 2</option><option value="mixolydian_b6">Mixolydian b6</option><option value="aeolian_dominant">Aeolian Dominant (Mixolydian b2)</option></optgroup>
+    </select>
+  </div>
+  <div class="control-group">
+    <label for="chordSelector">Select Chord Type:</label>
+    <select id="chordSelector">
+        <option value="">None</option>
+        <optgroup label="Basic Triads">
+            <option value="major_triad">Major</option><option value="minor_triad">Minor</option><option value="diminished_triad">Diminished</option><option value="augmented_triad">Augmented</option><option value="sus2_triad">Sus2</option><option value="sus4_triad">Sus4</option>
+        </optgroup>
+        <optgroup label="Seventh Chords">
+            <option value="maj7">Major 7th</option><option value="m7">Minor 7th</option><option value="dom7">Dominant 7th</option><option value="dim7">Diminished 7th</option><option value="m7b5">Half-diminished 7th (m7♭5)</option><option value="mMaj7">Minor/Major 7th</option><option value="aug7">Augmented 7th</option><option value="augMaj7">Augmented Major 7th</option>
+        </optgroup>
+        <optgroup label="Extended Chords (Original)">
+            <option value="add9">Add9</option><option value="maj9">Major 9th</option><option value="m9">Minor 9th</option><option value="dom9">Dominant 9th</option><option value="maj11">Major 11th</option><option value="m11">Minor 11th</option><option value="dom11">Dominant 11th</option><option value="maj13">Major 13th</option><option value="m13">Minor 13th</option><option value="dom13">Dominant 13th</option>
+        </optgroup>
+        <optgroup label="Altered Dominant Chords (Original)">
+            <option value="dom7b5">7♭5</option><option value="dom7s5">7#5</option><option value="dom7b9">7♭9</option><option value="dom7s9">7#9</option><option value="dom7b5b9">7♭5♭9</option><option value="dom7b5s9">7♭5#9</option><option value="dom7s5b9">7#5♭9</option><option value="dom7s5s9">7#5#9</option><option value="dom7alt">7alt (altered)</option>
+        </optgroup>
+        <optgroup label="Sus and Add Chords (Original)">
+            <option value="sus2add4_orig">Sus2add4</option> <option value="add11_orig">Add11</option> <option value="add_b9_orig">Add♭9</option> <option value="add_s11_orig">Add#11</option> <option value="maj7sus2_orig">Major 7sus2</option> <option value="maj7sus4_orig">Major 7sus4</option> <option value="dom7sus2_orig">7sus2</option> <option value="dom7sus4_orig">7sus4</option>
+        </optgroup>
+        <optgroup label="Sixth Chords (Original)">
+            <option value="maj6">Major 6th</option><option value="m6">Minor 6th</option><option value="maj69">6/9</option><option value="m69">Minor 6/9</option>
+        </optgroup>
+        <optgroup label="Power and Other Chords (Original)">
+            <option value="power_chord">Power chord (5th)</option><option value="major_2nd_dyad">Major 2nd</option><option value="flat_5_dyad">♭5 (flat five)</option><option value="sharp_11_triad">#11 (sharp eleven)</option><option value="polychord_placeholder_orig">Polychord (e.g., C/E)</option>
+        </optgroup>
+        <optgroup label="Advanced Seventh Variations">
+            <option value="dom7susb9">7sus♭9</option><option value="dom7suss9">7sus#9</option><option value="dom7susb13">7sus♭13</option><option value="maj7b5">maj7♭5</option><option value="maj7s5">maj7#5</option><option value="maj7b9">maj7♭9</option><option value="maj7s9">maj7#9</option><option value="maj7s11">maj7#11</option><option value="maj7b13">maj7♭13</option><option value="m7b9">m7♭9</option><option value="m7s9">m7#9</option><option value="m7b11">m7♭11</option><option value="m7s11">m7#11</option><option value="m7b13">m7♭13</option><option value="m7s13">m7#13</option>
+        </optgroup>
+        <optgroup label="Ninth Chord Variations">
+            <option value="dom9sus2">9sus2</option><option value="dom9sus4">9sus4</option><option value="maj9b5">maj9♭5</option><option value="maj9s5">maj9#5</option><option value="maj9s11">maj9#11</option><option value="maj9b13">maj9♭13</option><option value="m9b5">m9♭5</option><option value="m9s5">m9#5</option><option value="m9s11">m9#11</option><option value="m9b13">m9♭13</option><option value="dom9b5b13">9♭5♭13</option><option value="dom9s5b13">9#5♭13</option><option value="dom9b5s11">9♭5#11</option><option value="dom9s5s11">9#5#11</option><option value="dim9">dim9</option>
+        </optgroup>
+        <optgroup label="Eleventh Chord Variations">
+            <option value="dom11sus2">11sus2</option><option value="dom11sus4">11sus4</option><option value="maj11b5">maj11♭5</option><option value="maj11s5">maj11#5</option><option value="maj11b9">maj11♭9</option><option value="maj11s9">maj11#9</option><option value="maj11b13">maj11♭13</option><option value="m11b5">m11♭5</option><option value="m11s5">m11#5</option><option value="m11b9">m11♭9</option><option value="m11s9">m11#9</option><option value="m11b13">m11♭13</option><option value="dom11b5b9">11♭5♭9</option><option value="dom11s5b9">11#5♭9</option><option value="dom11b5s9">11♭5#9</option>
+        </optgroup>
+        <optgroup label="Thirteenth Chord Variations">
+            <option value="dom13sus2">13sus2</option><option value="dom13sus4">13sus4</option><option value="maj13b5">maj13♭5</option><option value="maj13s5">maj13#5</option><option value="maj13b9">maj13♭9</option><option value="maj13s9">maj13#9</option><option value="maj13s11">maj13#11</option><option value="m13b5">m13♭5</option><option value="m13s5">m13#5</option><option value="m13b9">m13♭9</option><option value="m13s9">m13#9</option><option value="m13s11">m13#11</option><option value="dom13b5b9">13♭5♭9</option><option value="dom13s5b9">13#5♭9</option><option value="dom13b5s9">13♭5#9</option>
+        </optgroup>
+        <optgroup label="Complex Altered Chords">
+            <option value="dom7b5b9b13">7♭5♭9♭13</option><option value="dom7s5b9b13">7#5♭9♭13</option><option value="dom7b5s9b13">7♭5#9♭13</option><option value="dom7s5s9b13">7#5#9♭13</option><option value="dom7b5b9s11">7♭5♭9#11</option><option value="dom7s5b9s11">7#5♭9#11</option><option value="dom7b5s9s11">7♭5#9#11</option><option value="dom7s5s9s11">7#5#9#11</option><option value="dom7altb13">7alt♭13</option><option value="dom7alts11">7alt#11</option><option value="maj7b5b9">maj7♭5♭9</option><option value="maj7s5b9">maj7#5♭9</option><option value="maj7b5s9">maj7♭5#9</option><option value="maj7s5s9">maj7#5#9</option><option value="maj7b5s11">maj7♭5#11</option>
+        </optgroup>
+        <optgroup label="Add Chord Variations">
+            <option value="addb2">add♭2</option><option value="adds2">add#2</option><option value="addb3">add♭3</option><option value="adds4">add#4</option><option value="addb6">add♭6</option><option value="adds6">add#6</option><option value="addb7">add♭7</option><option value="adds8">add#8</option><option value="addb10">add♭10</option><option value="adds10">add#10</option><option value="addb13">add♭13</option><option value="maddb9">madd♭9</option><option value="madds9">madd#9</option><option value="maddb11">madd♭11</option><option value="madds11">madd#11</option>
+        </optgroup>
+        <optgroup label="Quartal and Quintal Chords">
+            <option value="quartal_cfbb">4th chord (C-F-B♭)</option><option value="quintal_stack">5th chord stack</option><option value="quartal_triad">Quartal triad</option><option value="quintal_triad">Quintal triad</option><option value="mixed_quartal_quintal">Mixed quartal/quintal</option><option value="sus2b5">sus2♭5</option><option value="sus2s5">sus2#5</option><option value="sus4b5">sus4♭5</option><option value="sus4s5">sus4#5</option><option value="sus2sus4">sus2sus4</option>
+        </optgroup>
+        <optgroup label="Polychords">
+            <option value="poly_c_d">C/D</option><option value="poly_c_e">C/E</option><option value="poly_c_fs">C/F#</option><option value="poly_c_gs">C/G#</option><option value="poly_c_a">C/A</option><option value="poly_c_b">C/B</option><option value="poly_dm_c">Dm/C</option><option value="poly_em_c">Em/C</option><option value="poly_f_c">F/C</option><option value="poly_g_c">G/C</option><option value="poly_am_c">Am/C</option><option value="poly_bm_c">Bm/C</option><option value="poly_c7_e">C7/E</option><option value="poly_c7_g">C7/G</option><option value="poly_cmaj7_e">Cmaj7/E</option>
+        </optgroup>
+        <optgroup label="Slash Chords (Bass Inversions)">
+            <option value="slash_c_e">C/E (first inversion)</option><option value="slash_c_g">C/G (second inversion)</option><option value="slash_cm_eb">Cm/E♭</option><option value="slash_cm_g">Cm/G</option><option value="slash_c7_e_inv">C7/E</option><option value="slash_c7_g_inv">C7/G</option><option value="slash_c7_bb">C7/B♭</option><option value="slash_cmaj7_e_inv">Cmaj7/E</option><option value="slash_cmaj7_g">Cmaj7/G</option><option value="slash_cmaj7_b">Cmaj7/B</option><option value="slash_cm7_eb">Cm7/E♭</option><option value="slash_cm7_g">Cm7/G</option><option value="slash_cm7_bb">Cm7/B♭</option><option value="slash_cdim_eb">Cdim/E♭</option><option value="slash_caug_e">Caug/E</option>
+        </optgroup>
+        <optgroup label="Cluster Chords">
+            <option value="cluster_tone">Tone cluster (C-D♭-D)</option><option value="cluster_semitone">Semitone cluster</option><option value="cluster_maj2">Major 2nd cluster</option><option value="cluster_min2">Minor 2nd cluster</option><option value="cluster_mixed_interval">Mixed interval cluster</option><option value="cluster_chromatic">Chromatic cluster</option><option value="cluster_diatonic">Diatonic cluster</option><option value="cluster_pentatonic">Pentatonic cluster</option><option value="cluster_wide">Wide cluster</option><option value="cluster_narrow">Narrow cluster</option>
+        </optgroup>
+        <optgroup label="Hybrid and Compound Chords">
+            <option value="maj7addb9">maj7add♭9</option><option value="maj7adds9">maj7add#9</option><option value="maj7addb11">maj7add♭11</option><option value="maj7adds11">maj7add#11</option><option value="maj7addb13">maj7add♭13</option><option value="m7addb9">m7add♭9</option><option value="m7adds9">m7add#9</option><option value="m7addb11">m7add♭11</option><option value="m7adds11">m7add#11</option><option value="m7addb13">m7add♭13</option><option value="dom7addb9">7add♭9</option><option value="dom7adds9">7add#9</option><option value="dom7addb11">7add♭11</option><option value="dom7adds11">7add#11</option><option value="dom7addb13">7add♭13</option>
+        </optgroup>
+        <optgroup label="Extended Sus Chords">
+            <option value="maj7sus2">Major 7sus2</option> <option value="maj7sus4">Major 7sus4</option> <option value="maj9sus2">maj9sus2</option><option value="maj9sus4">maj9sus4</option><option value="maj11sus2">maj11sus2</option><option value="maj13sus2">maj13sus2</option><option value="maj13sus4">maj13sus4</option><option value="m7sus2">m7sus2</option><option value="m7sus4">m7sus4</option><option value="m9sus2">m9sus2</option><option value="m9sus4">m9sus4</option><option value="m11sus2">m11sus2</option><option value="m13sus2">m13sus2</option><option value="m13sus4">m13sus4</option><option value="dom7sus2b5">7sus2♭5</option>
+        </optgroup>
+        <optgroup label="Microtonal and Quarter-Tone Chords">
+            <option value="micro_qsharp3">Quarter-sharp 3rd</option><option value="micro_qflat3">Quarter-flat 3rd</option><option value="micro_qsharp5">Quarter-sharp 5th</option><option value="micro_qflat5">Quarter-flat 5th</option><option value="micro_qsharp7">Quarter-sharp 7th</option><option value="micro_qflat7">Quarter-flat 7th</option><option value="micro_31tet">31-tone equal temperament chord</option><option value="micro_53tet">53-tone equal temperament chord</option><option value="micro_ji_maj">Just intonation major</option><option value="micro_ji_min">Just intonation minor</option>
+        </optgroup>
+        <optgroup label="Synthetic Scale Chords">
+            <option value="synth_whole_tone">Whole-tone chord</option><option value="synth_octatonic">Octatonic chord</option><option value="synth_chromatic">Chromatic chord</option><option value="synth_prometheus">Prometheus chord</option><option value="synth_mystic">Mystic chord (C-F#-B♭-E-A-D)</option><option value="synth_petrushka">Petrushka chord</option><option value="synth_elektra">Elektra chord</option><option value="synth_tristan">Tristan chord</option><option value="synth_french6">French sixth</option><option value="synth_italian6">Italian sixth</option>
+        </optgroup>
+        <optgroup label="Stacked Interval Chords">
+            <option value="stacked_3rds">Stacked 3rds</option><option value="stacked_4ths">Stacked 4ths</option><option value="stacked_5ths">Stacked 5ths</option><option value="stacked_6ths">Stacked 6ths</option><option value="stacked_7ths">Stacked 7ths</option><option value="stacked_mixed">Mixed stacked intervals</option><option value="stacked_asc3">Ascending 3rds stack</option><option value="stacked_desc3">Descending 3rds stack</option><option value="stacked_alt_int">Alternating intervals</option><option value="stacked_fibonacci">Fibonacci intervals</option>
+        </optgroup>
+        <optgroup label="Jazz Reharmonization Chords">
+            <option value="jazz_tritone_sub">Tritone substitution</option><option value="jazz_bII7">♭II7 (Neapolitan 7th)</option><option value="jazz_bVI7">♭VI7</option><option value="jazz_sIV7">♯IV7</option><option value="jazz_bIII7">♭III7</option><option value="jazz_sI7">♯I7</option><option value="jazz_bVII7">♭VII7</option><option value="jazz_sV7">#V7</option><option value="jazz_chrom_mediant">Chromatic mediant</option><option value="jazz_borrowed_ii">Borrowed ii chord</option>
+        </optgroup>
+        <optgroup label="Contemporary/Modern Chords">
+            <option value="contemp_bitonal">Bitonal chord</option><option value="contemp_polyrhythmic">Polyrhythmic chord</option><option value="contemp_spectral">Spectral chord</option><option value="contemp_harmonic_series">Harmonic series chord</option><option value="contemp_inharmonic">Inharmonic chord</option><option value="contemp_noise">Noise chord</option><option value="contemp_prepared">Prepared chord</option><option value="contemp_ext_technique">Extended technique chord</option><option value="contemp_electronic">Electronic chord</option><option value="contemp_synthesized">Synthesized chord</option>
+        </optgroup>
+        <optgroup label="Regional/Cultural Variations">
+            <option value="region_flamenco">Flamenco chord</option><option value="region_fado">Fado chord</option><option value="region_celtic">Celtic chord</option><option value="region_middle_eastern">Middle Eastern chord</option><option value="region_indian_raga">Indian raga chord</option><option value="region_gamelan">Gamelan chord</option><option value="region_african">African chord</option><option value="region_latin">Latin chord</option><option value="region_balkan">Balkan chord</option><option value="region_nordic">Nordic chord</option>
+        </optgroup>
+        <optgroup label="Experimental and Avant-Garde">
+            <option value="exp_aleatoric">Aleatoric chord</option><option value="exp_graphic">Graphic notation chord</option><option value="exp_conceptual">Conceptual chord</option><option value="exp_impossible">Impossible chord</option><option value="exp_virtual">Virtual chord</option><option value="exp_holographic">Holographic chord</option><option value="exp_fractal">Fractal chord</option><option value="exp_algorithmic">Algorithmic chord</option><option value="exp_ai_generated">AI-generated chord</option><option value="exp_quantum">Quantum chord</option>
+        </optgroup>
+        <optgroup label="Final Specialized Chords">
+            <option value="spec_6addb9">6add♭9</option><option value="spec_6adds9">6add#9</option><option value="spec_6adds11">6add#11</option><option value="spec_maj69b5">maj6/9♭5</option><option value="spec_maj69s5">maj6/9#5</option><option value="spec_m6addb9">m6add♭9</option><option value="spec_m6adds9">m6add#9</option><option value="spec_power_addb9">Power chord add♭9</option><option value="spec_open_string">Open string chord</option><option value="spec_sympathetic_res">Sympathetic resonance chord</option>
+        </optgroup>
+    </select>
+  </div>
+</div>
+
+<div class="fretboard-outer-container">
+    <div class="fretboard-container">
+      <div class="header-empty-cell"></div> <div class="header-empty-cell"></div>
+      <div class="label fret-number">1</div><div class="label fret-number">2</div><div class="label fret-number">3</div><div class="label fret-number">4</div><div class="label fret-number">5</div><div class="label fret-number">6</div><div class="label fret-number">7</div><div class="label fret-number">8</div><div class="label fret-number">9</div><div class="label fret-number">10</div><div class="label fret-number">11</div><div class="label fret-number">12</div>
+      <div class="label fret-number">13</div><div class="label fret-number">14</div><div class="label fret-number">15</div><div class="label fret-number">16</div><div class="label fret-number">17</div><div class="label fret-number">18</div>
+      <div class="header-empty-cell"></div>
+
+      <div class="string-number">1</div><div class="label string-label note-E">E</div><div class="note note-F">F</div><div class="note note-Fsharp">F#</div><div class="note note-G">G</div><div class="note note-Gsharp">G#</div><div class="note note-A">A</div><div class="note note-Asharp">A#</div><div class="note note-B">B</div><div class="note note-C">C</div><div class="note note-Csharp">C#</div><div class="note note-D">D</div><div class="note note-Dsharp">D#</div><div class="note note-E">E</div><div class="note note-F">F</div><div class="note note-Fsharp">F#</div><div class="note note-G">G</div><div class="note note-Gsharp">G#</div><div class="note note-A">A</div><div class="note note-Asharp">A#</div><div class="string-number">1</div>
+      <div class="string-number">2</div><div class="label string-label note-A">A</div><div class="note note-Asharp">A#</div><div class="note note-B">B</div><div class="note note-C">C</div><div class="note note-Csharp">C#</div><div class="note note-D">D</div><div class="note note-Dsharp">D#</div><div class="note note-E">E</div><div class="note note-F">F</div><div class="note note-Fsharp">F#</div><div class="note note-G">G</div><div class="note note-Gsharp">G#</div><div class="note note-A">A</div><div class="note note-Asharp">A#</div><div class="note note-B">B</div><div class="note note-C">C</div><div class="note note-Csharp">C#</div><div class="note note-D">D</div><div class="note note-Dsharp">D#</div><div class="string-number">2</div>
+      <div class="string-number">3</div><div class="label string-label note-D">D</div><div class="note note-Dsharp">D#</div><div class="note note-E">E</div><div class="note note-F">F</div><div class="note note-Fsharp">F#</div><div class="note note-G">G</div><div class="note note-Gsharp">G#</div><div class="note note-A">A</div><div class="note note-Asharp">A#</div><div class="note note-B">B</div><div class="note note-C">C</div><div class="note note-Csharp">C#</div><div class="note note-D">D</div><div class="note note-Dsharp">D#</div><div class="note note-E">E</div><div class="note note-F">F</div><div class="note note-Fsharp">F#</div><div class="note note-G">G</div><div class="note note-Gsharp">G#</div><div class="string-number">3</div>
+      <div class="string-number">4</div><div class="label string-label note-G">G</div><div class="note note-Gsharp">G#</div><div class="note note-A">A</div><div class="note note-Asharp">A#</div><div class="note note-B">B</div><div class="note note-C">C</div><div class="note note-Csharp">C#</div><div class="note note-D">D</div><div class="note note-Dsharp">D#</div><div class="note note-E">E</div><div class="note note-F">F</div><div class="note note-Fsharp">F#</div><div class="note note-G">G</div><div class="note note-Gsharp">G#</div><div class="note note-A">A</div><div class="note note-Asharp">A#</div><div class="note note-B">B</div><div class="note note-C">C</div><div class="note note-Csharp">C#</div><div class="string-number">4</div>
+      <div class="string-number">5</div><div class="label string-label note-B">B</div><div class="note note-C">C</div><div class="note note-Csharp">C#</div><div class="note note-D">D</div><div class="note note-Dsharp">D#</div><div class="note note-E">E</div><div class="note note-F">F</div><div class="note note-Fsharp">F#</div><div class="note note-G">G</div><div class="note note-Gsharp">G#</div><div class="note note-A">A</div><div class="note note-Asharp">A#</div><div class="note note-B">B</div><div class="note note-C">C</div><div class="note note-Csharp">C#</div><div class="note note-D">D</div><div class="note note-Dsharp">D#</div><div class="note note-E">E</div><div class="note note-F">F</div><div class="string-number">5</div>
+      <div class="string-number">6</div><div class="label string-label note-E">E</div><div class="note note-F">F</div><div class="note note-Fsharp">F#</div><div class="note note-G">G</div><div class="note note-Gsharp">G#</div><div class="note note-A">A</div><div class="note note-Asharp">A#</div><div class="note note-B">B</div><div class="note note-C">C</div><div class="note note-Csharp">C#</div><div class="note note-D">D</div><div class="note note-Dsharp">D#</div><div class="note note-E">E</div><div class="note note-F">F</div><div class="note note-Fsharp">F#</div><div class="note note-G">G</div><div class="note note-Gsharp">G#</div><div class="note note-A">A</div><div class="note note-Asharp">A#</div><div class="string-number">6</div>
+
+      <div class="footer-empty-cell"></div> <div class="footer-empty-cell"></div>
+      <div class="label fret-number bottom-fret-number">1</div><div class="label fret-number bottom-fret-number">2</div><div class="label fret-number bottom-fret-number">3</div><div class="label fret-number bottom-fret-number">4</div><div class="label fret-number bottom-fret-number">5</div><div class="label fret-number bottom-fret-number">6</div><div class="label fret-number bottom-fret-number">7</div><div class="label fret-number bottom-fret-number">8</div><div class="label fret-number bottom-fret-number">9</div><div class="label fret-number bottom-fret-number">10</div><div class="label fret-number bottom-fret-number">11</div><div class="label fret-number bottom-fret-number">12</div>
+      <div class="label fret-number bottom-fret-number">13</div><div class="label fret-number bottom-fret-number">14</div><div class="label fret-number bottom-fret-number">15</div><div class="label fret-number bottom-fret-number">16</div><div class="label fret-number bottom-fret-number">17</div><div class="label fret-number bottom-fret-number">18</div>
+      <div class="footer-empty-cell"></div>
+    </div>
+</div>
+
+<div id="spellingDisplayContainer" class="spelling-display">
+    <p id="spellingText">Select a root and a scale or chord to see its spelling.</p>
+</div>
+
+<script>
+  const allNoteDisplayElements = document.querySelectorAll('.note, .label.string-label');
+  const rootNoteSelector = document.getElementById('rootNoteSelector');
+  const scaleSelector = document.getElementById('scaleSelector');
+  const chordSelector = document.getElementById('chordSelector');
+  const spellingElement = document.getElementById('spellingText');
+
+  const chromaticNotes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const scaleFormulas = { /* ... All 50 scale formulas ... */
+    'major_ionian':[0,2,4,5,7,9,11],'dorian':[0,2,3,5,7,9,10],'phrygian':[0,1,3,5,7,8,10],'lydian':[0,2,4,6,7,9,11],'mixolydian':[0,2,4,5,7,9,10],'minor_aeolian':[0,2,3,5,7,8,10],'locrian':[0,1,3,5,6,8,10],'natural_minor':[0,2,3,5,7,8,10],'harmonic_minor':[0,2,3,5,7,8,11],'melodic_minor':[0,2,3,5,7,9,11],'dorian_minor':[0,2,3,5,7,9,10],'major_pentatonic':[0,2,4,7,9],'minor_pentatonic':[0,3,5,7,10],'egyptian_pentatonic':[0,2,5,7,10],'japanese_hirajoshi':[0,2,3,7,8],'chinese_pentatonic':[0,4,6,7,11],'blues_scale':[0,3,5,6,7,10],'major_blues_scale':[0,2,3,4,7,9],'bebop_blues_scale':[0,2,3,4,5,7,9,10],'hungarian_minor':[0,2,3,6,7,8,11],'spanish_phrygian':[0,1,4,5,7,8,10],'arabic_scale':[0,2,4,5,6,8,10],'byzantine_scale':[0,1,4,5,7,8,11],'persian_scale':[0,1,4,5,6,8,11],'gypsy_scale':[0,2,3,6,7,8,10],'neapolitan_minor':[0,1,3,5,7,8,11],'neapolitan_major':[0,1,3,5,7,9,11],'jewish_ahava_rabbah':[0,1,4,5,7,8,10],'turkish_scale':[0,1,4,5,7,8,10],'bebop_dominant':[0,2,4,5,7,9,10,11],'bebop_major':[0,2,4,5,7,8,9,11],'bebop_minor':[0,2,3,4,5,7,9,10],'altered_scale':[0,1,3,4,6,8,10],'lydian_dominant':[0,2,4,6,7,9,10],'half_whole_diminished':[0,1,3,4,6,7,9,10],'whole_half_diminished':[0,2,3,5,6,8,9,11],'whole_tone':[0,2,4,6,8,10],'chromatic':[0,1,2,3,4,5,6,7,8,9,10,11],'octatonic_wh':[0,2,3,5,6,8,9,11],'prometheus_scale':[0,2,4,6,9,10],'tritone_scale':[0,1,4,6,7,10],'enigmatic_scale':[0,1,4,6,8,10,11],'double_harmonic':[0,1,4,5,7,8,11],'ukrainian_dorian':[0,2,3,6,7,9,10],'acoustic_scale':[0,2,4,6,7,9,10],'phrygian_dominant':[0,1,4,5,7,8,10],'lydian_augmented':[0,2,4,6,8,9,11],'locrian_natural_2':[0,2,3,5,6,8,10],'mixolydian_b6':[0,2,4,5,7,8,10],'aeolian_dominant':[0,2,4,5,7,8,10]
+  };
+  const chordFormulas = {
+    // Original Chords
+    'major_triad':[0,4,7],'minor_triad':[0,3,7],'diminished_triad':[0,3,6],'augmented_triad':[0,4,8],'sus2_triad':[0,2,7],'sus4_triad':[0,5,7],'maj7':[0,4,7,11],'m7':[0,3,7,10],'dom7':[0,4,7,10],'dim7':[0,3,6,9],'m7b5':[0,3,6,10],'mMaj7':[0,3,7,11],'aug7':[0,4,8,10],'augMaj7':[0,4,8,11],'add9':[0,4,7,2],'maj9':[0,4,7,11,2],'m9':[0,3,7,10,2],'dom9':[0,4,7,10,2],'maj11':[0,4,7,11,2,5],'m11':[0,3,7,10,2,5],'dom11':[0,4,7,10,2,5],'maj13':[0,4,7,11,2,5,9],'m13':[0,3,7,10,2,5,9],'dom13':[0,4,7,10,2,5,9],'dom7b5':[0,4,6,10],'dom7s5':[0,4,8,10],'dom7b9':[0,4,7,10,1],'dom7s9':[0,4,7,10,3],'dom7b5b9':[0,4,6,10,1],'dom7b5s9':[0,4,6,10,3],'dom7s5b9':[0,4,8,10,1],'dom7s5s9':[0,4,8,10,3],'dom7alt':[0,4,10,1,8],'sus2add4_orig':[0,2,5,7],'add11_orig':[0,4,7,5],'add_b9_orig':[0,4,7,1],'add_s11_orig':[0,4,7,6],'maj7sus2_orig':[0,2,7,11],'maj7sus4_orig':[0,5,7,11],'dom7sus2_orig':[0,2,7,10],'dom7sus4_orig':[0,5,7,10],'maj6':[0,4,7,9],'m6':[0,3,7,9],'maj69':[0,4,7,9,2],'m69':[0,3,7,9,2],'power_chord':[0,7],'major_2nd_dyad':[0,2],'flat_5_dyad':[0,6],'sharp_11_triad':[0,4,7,6],'polychord_placeholder_orig':[0],
+    // Advanced Seventh Variations
+    'dom7susb9': [0,5,7,10,1], 'dom7suss9': [0,5,7,10,3], 'dom7susb13': [0,5,7,10,8], 'maj7b5': [0,4,6,11], 'maj7s5': [0,4,8,11], 'maj7b9': [0,4,7,11,1], 'maj7s9': [0,4,7,11,3], 'maj7s11': [0,4,7,11,6], 'maj7b13': [0,4,7,11,8], 'm7b9': [0,3,7,10,1], 'm7s9': [0,3,7,10,3], 'm7b11': [0,3,7,10,4], 'm7s11': [0,3,7,10,6], 'm7b13': [0,3,7,10,8], 'm7s13': [0,3,7,10,9],
+    // Ninth Chord Variations
+    'dom9sus2': [0,2,7,10,2], 'dom9sus4': [0,5,7,10,2], 'maj9b5': [0,4,6,11,2], 'maj9s5': [0,4,8,11,2], 'maj9s11': [0,4,7,11,2,6], 'maj9b13': [0,4,7,11,2,8], 'm9b5': [0,3,6,10,2], 'm9s5': [0,3,8,10,2], 'm9s11': [0,3,7,10,2,6], 'm9b13': [0,3,7,10,2,8], 'dom9b5b13': [0,4,6,10,2,8], 'dom9s5b13': [0,4,8,10,2,8], 'dom9b5s11': [0,4,6,10,2,6], 'dom9s5s11': [0,4,8,10,2,6], 'dim9': [0,3,6,9,2], // Dim7 + M9
+    // Eleventh Chord Variations
+    'dom11sus2': [0,2,7,10,2,5], 'dom11sus4': [0,5,7,10,2,5], 'maj11b5': [0,4,6,11,2,5], 'maj11s5': [0,4,8,11,2,5], 'maj11b9': [0,4,7,11,1,5], 'maj11s9': [0,4,7,11,3,5], 'maj11b13': [0,4,7,11,2,5,8], 'm11b5': [0,3,6,10,2,5], 'm11s5': [0,3,8,10,2,5], 'm11b9': [0,3,7,10,1,5], 'm11s9': [0,3,7,10,3,5], 'm11b13': [0,3,7,10,2,5,8], 'dom11b5b9': [0,4,6,10,1,5], 'dom11s5b9': [0,4,8,10,1,5], 'dom11b5s9': [0,4,6,10,3,5],
+    // Thirteenth Chord Variations
+    'dom13sus2': [0,2,7,10,2,5,9], 'dom13sus4': [0,5,7,10,2,5,9], 'maj13b5': [0,4,6,11,2,5,9], 'maj13s5': [0,4,8,11,2,5,9], 'maj13b9': [0,4,7,11,1,5,9], 'maj13s9': [0,4,7,11,3,5,9], 'maj13s11': [0,4,7,11,2,6,9], 'm13b5': [0,3,6,10,2,5,9], 'm13s5': [0,3,8,10,2,5,9], 'm13b9': [0,3,7,10,1,5,9], 'm13s9': [0,3,7,10,3,5,9], 'm13s11': [0,3,7,10,2,6,9], 'dom13b5b9': [0,4,6,10,1,5,9], 'dom13s5b9': [0,4,8,10,1,5,9], 'dom13b5s9': [0,4,6,10,3,5,9],
+    // Complex Altered Chords (Many are variations of Dom7alt)
+    'dom7b5b9b13': [0,4,6,10,1,8], 'dom7s5b9b13': [0,4,8,10,1,8], 'dom7b5s9b13': [0,4,6,10,3,8], 'dom7s5s9b13': [0,4,8,10,3,8], 'dom7b5b9s11': [0,4,6,10,1,6], 'dom7s5b9s11': [0,4,8,10,1,6], 'dom7b5s9s11': [0,4,6,10,3,6], 'dom7s5s9s11': [0,4,8,10,3,6], 'dom7altb13': [0,4,10,1,8], 'dom7alts11': [0,4,10,1,6], 'maj7b5b9': [0,4,6,11,1], 'maj7s5b9': [0,4,8,11,1], 'maj7b5s9': [0,4,6,11,3], 'maj7s5s9': [0,4,8,11,3], 'maj7b5s11': [0,4,6,11,6],
+    // Add Chord Variations (Added to Major Triad unless 'madd' prefix)
+    'addb2': [0,4,7,1], 'adds2': [0,4,7,3], 'addb3': [0,4,7,2], // add#2 and addb3 can be same as add9/addm9
+    'adds4': [0,4,7,6], 'addb6': [0,4,7,8], 'adds6': [0,4,7,10], // adds6 same as dom7 if root is C
+    'addb7': [0,4,7,9], // addb7 same as Maj6 if root is C
+    'adds8': [0,4,7,1], // Octave equivalent of addb2
+    'addb10': [0,4,7,3], // Octave equivalent of adds2/addb3
+    'adds10': [0,4,7,5], // Octave equivalent of add11
+    'addb13': [0,4,7,8], // Same as addb6
+    'maddb9': [0,3,7,1], 'madds9': [0,3,7,3], 'maddb11': [0,3,7,4], 'madds11': [0,3,7,6],
+    // Quartal and Quintal Chords (Based on C for example, relative intervals)
+    'quartal_cfbb': [0,5,10], // C-F-Bb
+    'quintal_stack': [0,7,2], // C-G-D (0, 7, 14%12=2) - basic 3 notes
+    'quartal_triad': [0,5,10], // Common interpretation
+    'quintal_triad': [0,7,2],  // Common interpretation
+    'mixed_quartal_quintal': [0,5,0], // Placeholder - too variable
+    'sus2b5': [0,2,6], 'sus2s5': [0,2,8], 'sus4b5': [0,5,6], 'sus4s5': [0,5,8], 'sus2sus4': [0,2,5,7], // R M2 P4 P5
+    // Polychords (Placeholder - highlight first chord mentioned)
+    'poly_c_d': [0,4,7], 'poly_c_e': [0,4,7], 'poly_c_fs': [0,4,7], 'poly_c_gs': [0,4,7], 'poly_c_a': [0,4,7], 'poly_c_b': [0,4,7], 'poly_dm_c': [0,3,7], 'poly_em_c': [0,3,7], 'poly_f_c': [0,4,7], 'poly_g_c': [0,4,7], 'poly_am_c': [0,3,7], 'poly_bm_c': [0,3,6], 'poly_c7_e': [0,4,7,10], 'poly_c7_g': [0,4,7,10], 'poly_cmaj7_e': [0,4,7,11],
+    // Slash Chords (Highlight the main chord, inversion is a voicing concept)
+    'slash_c_e': [0,4,7], 'slash_c_g': [0,4,7], 'slash_cm_eb': [0,3,7], 'slash_cm_g': [0,3,7], 'slash_c7_e_inv': [0,4,7,10], 'slash_c7_g_inv': [0,4,7,10], 'slash_c7_bb': [0,4,7,10], 'slash_cmaj7_e_inv': [0,4,7,11], 'slash_cmaj7_g': [0,4,7,11], 'slash_cmaj7_b': [0,4,7,11], 'slash_cm7_eb': [0,3,7,10], 'slash_cm7_g': [0,3,7,10], 'slash_cm7_bb': [0,3,7,10], 'slash_cdim_eb': [0,3,6], 'slash_caug_e': [0,4,8],
+    // Cluster Chords (Placeholders - highlight root or basic triad)
+    'cluster_tone': [0,1,2], 'cluster_semitone': [0,1], 'cluster_maj2': [0,2], 'cluster_min2': [0,1], 'cluster_mixed_interval': [0,4,7], 'cluster_chromatic': [0,1,2,3], 'cluster_diatonic': [0,2,4], 'cluster_pentatonic': [0,2,4], 'cluster_wide': [0,7,11], 'cluster_narrow': [0,1,2],
+    // Hybrid and Compound Chords
+    'maj7addb9': [0,4,7,11,1], 'maj7adds9': [0,4,7,11,3], 'maj7addb11': [0,4,7,11,4], 'maj7adds11': [0,4,7,11,6], 'maj7addb13': [0,4,7,11,8], 'm7addb9': [0,3,7,10,1], 'm7adds9': [0,3,7,10,3], 'm7addb11': [0,3,7,10,4], 'm7adds11': [0,3,7,10,6], 'm7addb13': [0,3,7,10,8], 'dom7addb9': [0,4,7,10,1], 'dom7adds9': [0,4,7,10,3], 'dom7addb11': [0,4,7,10,4], 'dom7adds11': [0,4,7,10,6], 'dom7addb13': [0,4,7,10,8],
+    // Extended Sus Chords
+    'maj7sus2': [0,2,7,11], 'maj7sus4': [0,5,7,11], 'maj9sus2': [0,2,7,11,2], 'maj9sus4': [0,5,7,11,2], 'maj11sus2': [0,2,7,11,2,5], 'maj13sus2': [0,2,7,11,2,5,9], 'maj13sus4': [0,5,7,11,2,5,9], 'm7sus2': [0,2,7,10], 'm7sus4': [0,5,7,10], 'm9sus2': [0,2,7,10,2], 'm9sus4': [0,5,7,10,2], 'm11sus2': [0,2,7,10,2,5], 'm13sus2': [0,2,7,10,2,5,9], 'm13sus4': [0,5,7,10,2,5,9], 'dom7sus2b5': [0,2,6,10],
+    // Microtonal (Placeholders - show standard equivalent or root)
+    'micro_qsharp3': [0,4,7], 'micro_qflat3': [0,3,7], 'micro_qsharp5': [0,4,7], 'micro_qflat5': [0,4,7], 'micro_qsharp7': [0,4,7,11], 'micro_qflat7': [0,4,7,10], 'micro_31tet': [0,4,7], 'micro_53tet': [0,4,7], 'micro_ji_maj': [0,4,7], 'micro_ji_min': [0,3,7],
+    // Synthetic Scale Chords
+    'synth_whole_tone': [0,2,4,6,8,10].slice(0,3), // Triad from scale
+    'synth_octatonic': [0,2,3,5,6,8,9,11].slice(0,4), // Common 4-note chord
+    'synth_chromatic': [0,1,2,3], // Cluster
+    'synth_prometheus': [0,2,4,6,9,10].slice(0,3), // Triad from scale
+    'synth_mystic': [0,6,10,4,9,2], // C F# Bb E A D
+    'synth_petrushka': [0,1,4], // C, C#, E (approximation)
+    'synth_elektra': [0,3,4,7], // (e.g. E minor + E major)
+    'synth_tristan': [0,3,6,10], // F, B, D#, G# (relative to F=0 -> 0, 6, 4, 10) -> (0,4,6,10) if root C
+    'synth_french6': [0,4,6,10], // (Ab C Eb F# -> if C is root: C E Gb A)
+    'synth_italian6': [0,4,10], // (Ab C F# -> if C is root: C E A)
+    // Stacked Interval Chords (Placeholders or simplified)
+    'stacked_3rds': [0,4,7], 'stacked_4ths': [0,5,10], 'stacked_5ths': [0,7,2], 'stacked_6ths': [0,9,6], 'stacked_7ths': [0,11,10], 'stacked_mixed': [0,4,7], 'stacked_asc3': [0,4,7], 'stacked_desc3': [0,8,4], 'stacked_alt_int': [0,4,9], 'stacked_fibonacci': [0,1,2,3,5],
+    // Jazz Reharmonization Chords (Often context dependent, showing common structure)
+    'jazz_tritone_sub': [0,4,7,10], // A dominant 7th chord, the root is a tritone away from original
+    'jazz_bII7': [0,4,7,10], // Dominant 7th built on bII
+    'jazz_bVI7': [0,4,7,10], 'jazz_sIV7': [0,4,7,10], 'jazz_bIII7': [0,4,7,10], 'jazz_sI7': [0,4,7,10], 'jazz_bVII7': [0,4,7,10], 'jazz_sV7': [0,4,7,10],
+    'jazz_chrom_mediant': [0,4,7], 'jazz_borrowed_ii': [0,3,6,10], // Typically m7b5
+    // Contemporary/Modern/Regional/Experimental (Placeholders - highlight root or basic triad)
+    'contemp_bitonal':[0,4,7],'contemp_polyrhythmic':[0,4,7],'contemp_spectral':[0,4,7],'contemp_harmonic_series':[0,4,7],'contemp_inharmonic':[0,4,7],'contemp_noise':[0],'contemp_prepared':[0,4,7],'contemp_ext_technique':[0,4,7],'contemp_electronic':[0,4,7],'contemp_synthesized':[0,4,7],
+    'region_flamenco':[0,1,4,5],'region_fado':[0,3,7],'region_celtic':[0,2,5,7],'region_middle_eastern':[0,1,4,5,8],'region_indian_raga':[0,4,7],'region_gamelan':[0,2,3,5,7],'region_african':[0,2,4,7,9],'region_latin':[0,4,7,10],'region_balkan':[0,2,3,6,7],'region_nordic':[0,3,5,7,10],
+    'exp_aleatoric':[0],'exp_graphic':[0],'exp_conceptual':[0],'exp_impossible':[0],'exp_virtual':[0],'exp_holographic':[0],'exp_fractal':[0],'exp_algorithmic':[0],'exp_ai_generated':[0],'exp_quantum':[0],
+    // Final Specialized Chords
+    'spec_6addb9': [0,4,7,9,1], 'spec_6adds9': [0,4,7,9,3], 'spec_6adds11': [0,4,7,9,6], 'spec_maj69b5': [0,4,6,9,2], 'spec_maj69s5': [0,4,8,9,2], 'spec_m6addb9': [0,3,7,9,1], 'spec_m6adds9': [0,3,7,9,3], 'spec_power_addb9': [0,7,1], 'spec_open_string': [0], 'spec_sympathetic_res': [0]
+  };
+
+  function updateHighlighting() {
+    allNoteDisplayElements.forEach(noteElement => {
+        noteElement.classList.remove('highlighted-root-distinct','highlighted-scale-note-active','note-inactive');
+    });
+
+    const selectedRootValue = rootNoteSelector.value;
+    const selectedScaleValue = scaleSelector.value;
+    const selectedChordValue = chordSelector.value;
+    let spellingOutput = "Select a root and a scale or chord to see its spelling.";
+
+    if (!selectedRootValue) {
+        spellingElement.innerHTML = spellingOutput;
+        return;
+    }
+
+    let notesToHighlight = [];
+    let highlightType = ''; // 'chord', 'scale', or 'root'
+    let activeSelectionName = ''; // For display
+
+    // Priority: Chord -> Scale -> Root
+    if (selectedChordValue && selectedChordValue !== "") {
+        const rootIndex = chromaticNotes.indexOf(selectedRootValue);
+        if (rootIndex !== -1) {
+            const formula = chordFormulas[selectedChordValue];
+            if (formula) {
+                notesToHighlight = formula.map(interval => chromaticNotes[(rootIndex + interval) % 12]);
+                highlightType = 'chord';
+                activeSelectionName = chordSelector.options[chordSelector.selectedIndex].text;
+                spellingOutput = `<strong>${selectedRootValue} ${activeSelectionName}</strong>: ${notesToHighlight.join(' - ')}`;
+            } else {
+                console.warn("Formula not found for chord:", selectedChordValue, ". Highlighting root only.");
+                notesToHighlight.push(selectedRootValue); // Fallback to root
+                highlightType = 'root_fallback_chord';
+                activeSelectionName = chordSelector.options[chordSelector.selectedIndex].text;
+                spellingOutput = `<strong>${selectedRootValue} ${activeSelectionName}</strong>: (Formula not defined, showing root: ${selectedRootValue})`;
+            }
+        } else { console.error("Invalid root note for chord calc:", selectedRootValue); }
+    } else if (selectedScaleValue && selectedScaleValue !== "") {
+        const rootIndex = chromaticNotes.indexOf(selectedRootValue);
+        if (rootIndex !== -1) {
+            const formula = scaleFormulas[selectedScaleValue];
+            if (formula) {
+                notesToHighlight = formula.map(interval => chromaticNotes[(rootIndex + interval) % 12]);
+                highlightType = 'scale';
+                activeSelectionName = scaleSelector.options[scaleSelector.selectedIndex].text;
+                spellingOutput = `<strong>${selectedRootValue} ${activeSelectionName}</strong>: ${notesToHighlight.join(' - ')}`;
+            } else { console.warn("Formula not found for scale:", selectedScaleValue); }
+        } else { console.error("Invalid root note for scale calc:", selectedRootValue); }
+    } else {
+        notesToHighlight.push(selectedRootValue);
+        highlightType = 'root';
+        spellingOutput = `<strong>Root Note</strong>: ${selectedRootValue}`;
+    }
+
+    // Apply highlighting
+    allNoteDisplayElements.forEach(noteElement => {
+        const noteText = noteElement.textContent.trim();
+        if (noteText === selectedRootValue) {
+            noteElement.classList.add('highlighted-root-distinct');
+        } else if (highlightType !== 'root' && highlightType !== 'root_fallback_chord' && notesToHighlight.includes(noteText)) {
+            noteElement.classList.add('highlighted-scale-note-active');
+        } else if (highlightType === 'scale' || highlightType === 'chord' || highlightType === 'root_fallback_chord') {
+            // Grey out if a scale or chord (even if fallback) is actively being displayed
+            if (!notesToHighlight.includes(noteText)) { // Ensure not to grey out the root if it's the only thing highlighted
+                 noteElement.classList.add('note-inactive');
+            }
+        }
+    });
+    spellingElement.innerHTML = spellingOutput;
+  }
+
+  rootNoteSelector.addEventListener('change', updateHighlighting);
+  scaleSelector.addEventListener('change', updateHighlighting);
+  chordSelector.addEventListener('change', updateHighlighting);
+  updateHighlighting();
+
+  document.querySelectorAll('.note').forEach(note => {
+    note.addEventListener('click', () => {
+      const stringRow = note.parentNode;
+      let stringName = 'Unknown String';
+      const stringLabelElement = stringRow.querySelector('.label.string-label');
+      if (stringLabelElement) { stringName = stringLabelElement.textContent.trim(); }
+      const fretNumber = Array.from(stringRow.children).indexOf(note) - 1;
+      if (fretNumber >= 1 && fretNumber <= 18) {
+        console.log(`Clicked: String ${stringName}, Fret ${fretNumber}, Note ${note.textContent.trim()}`);
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
